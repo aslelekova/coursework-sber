@@ -12,7 +12,8 @@ from PIL import Image
 from pathlib import Path
 from loguru import logger
 
-# Загрузка модели детекции
+# Загрузка моделей классификации и детекции
+classifier = YOLO('/Users/anastasialelekova/PycharmProjects/pythonProject9/checkpoints/classification/yolo_classification_checkpoints/train_100/weights/best.pt')
 detector = YOLO('/Users/anastasialelekova/PycharmProjects/pythonProject9/checkpoints/detection/yolo_detection_checkpoints/detect/train13/weights/best.pt')
 
 # Создание временной директории для хранения изображений
@@ -45,10 +46,10 @@ async def detect(upload_image: UploadFile):
     Обработка загруженного изображения:
     1. Сохраняет изображение во временную директорию.
     2. Детектирует банкоматы на изображении.
-    3. Вырезает каждый найденный банкомат.
+    3. Вырезает каждый банкомат, классифицирует как "чистый" или "грязный".
 
     :param upload_image: Файл изображения (jpg/png)
-    :return: JSON со списком найденных банкоматов и их координатами
+    :return: JSON со списком найденных банкоматов, координатами и результатами классификации
     """
     try:
         # Сохраняем файл во временную папку
@@ -73,12 +74,18 @@ async def detect(upload_image: UploadFile):
             coords = box.xyxy.tolist()[0]
             cropped = image.crop(coords).resize((224, 224))
 
-            # Сохраняем вырезанный банкомат
+            # Сохраняем вырезанный банкомат и классифицируем
             temp_path = os.path.join(tmp_dir, f"atm_crop_{uuid.uuid4().hex}.jpg")
             cropped.save(temp_path)
 
+            classify_result = classifier.predict(temp_path)[0]
+            label = classify_result.names[classify_result.probs.top1]
+            conf = classify_result.probs.top1conf.item()
+
             results.append({
                 "box": {"x1": coords[0], "y1": coords[1], "x2": coords[2], "y2": coords[3]},
+                "classification": label,
+                "confidence": round(conf, 4)
             })
 
         return JSONResponse({"detections": results})
