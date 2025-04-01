@@ -1,17 +1,12 @@
 from roboflow import Roboflow
 from ultralytics import YOLO
 
-rf = Roboflow(api_key="mSFbDvx11o3YDKGIdgsS")
-project = rf.workspace("classification-glt8h").project("871sber")
-version = project.version(1)
-dataset = version.download("yolov11")
-
 base_model_path = "/Users/anastasialelekova/PycharmProjects/sber/yolo11n.pt"
-save_dir = "yolo_checkpoints"
+save_dir = "yolo_deyection_checkpoints"
 
-epoch_stages = [75, 100]
+epoch_stages = [10, 25, 50, 75, 100]
 
-last_checkpoint = "yolo_checkpoints/train_50/weights/best.pt"
+last_checkpoint = base_model_path
 
 for epochs in epoch_stages:
     print(f"Обучаем модель до {epochs} эпох...")
@@ -35,4 +30,4 @@ for epochs in epoch_stages:
 
 final_model = YOLO(last_checkpoint)
 path = final_model.export(format="onnx")
-
+print(f"Финальная модель экспортирована в: {path}")

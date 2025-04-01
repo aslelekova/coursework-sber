@@ -2,9 +2,9 @@ import os
 import shutil
 import re
 
-source_folder = "/Users/anastasialelekova/Downloads/archive"
+source_folder = "/Users/anastasialelekova/Downloads/archive-2"
 
-destination_folder = "/Users/anastasialelekova/Desktop/data/clean"
+destination_folder = "/Users/anastasialelekova/Desktop/1"
 
 os.makedirs(destination_folder, exist_ok=True)
 

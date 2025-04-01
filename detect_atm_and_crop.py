@@ -23,7 +23,6 @@ def detect_atm_and_crop(image_path, save_path):
 
     return save_filename
 
-# Очистка папки processed_dataset
 if os.path.exists(output_dataset_path):
     shutil.rmtree(output_dataset_path)
 os.makedirs(f"{output_dataset_path}/train/clean", exist_ok=True)
