@@ -71,7 +71,7 @@ async def detect(upload_image: UploadFile):
         for box in boxes:
             # Получаем координаты и вырезаем банкомат
             coords = box.xyxy.tolist()[0]
-            cropped = image.crop(coords)
+            cropped = image.crop(coords).resize((224, 224))
 
             # Сохраняем вырезанный банкомат
             temp_path = os.path.join(tmp_dir, f"atm_crop_{uuid.uuid4().hex}.jpg")
