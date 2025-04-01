@@ -91,4 +91,7 @@ python test_model.py
 
 ## Используемые модели
 - **yolo11n.pt** — модель детекции 
-- **yolo11n-cls.pt** — модель классификации  
+- **yolo11n-cls.pt** — модель классификации
+
+## Примеры фото
+https://disk.yandex.ru/d/pqK9be7LM9J4lg
