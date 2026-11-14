@@ -1,85 +1,57 @@
-## Проект: Обнаружение загрязнённых банкоматов
+# ATM Cleanliness Inspection
 
-Цель — обнаружить **загрязнения на банкоматах**, используя **YOLO**: сначала локализуем банкомат на изображении, потом классифицируем как `clean` или `dirty`.
+A computer vision coursework project for screening ATM photos for visible dirt. The system locates each ATM in a scene and returns its bounding box, a `clean` or `dirty` label, and a classification confidence score.
 
-## Архитектура
+## How it works
 
-1. **Детекция банкоматов** (`models/yolo11n.pt`)
-   - Обучение: `detection/train.py`
-   - Кроп изображений: `data/crop_atms_for_classification.py`
+1. **Detect ATMs.** A YOLO11n detector processes the full photograph. The API uses a detection confidence threshold of 0.50.
+2. **Classify each ATM.** The API crops each detected region, resizes it to 224 × 224 pixels, and passes it to a YOLOv8n classifier. The label describes the entire ATM crop.
 
-2. **Классификация банкоматов** (`models/yolov8n-cls.pt`)
-   - Обучение: `classification/train.py`
+The [FastAPI backend](api/main.py) exposes this pipeline through `POST /detect`, which accepts a multipart file field named `upload_image`. The [Flutter client](atm_machine__app/lib/) lets users take a photo or select one from the gallery and displays the coordinates, label, and confidence for each detected ATM.
 
-3. **FastAPI-сервер** (`api/main.py`)
-   - Загружает изображение → детектирует банкомат → кропает → классифицирует
+## Data and training
 
----
+The project used Roboflow to prepare two datasets. The detection export contains ATM bounding boxes in YOLO format. The classification export groups full photos by cleanliness label. The [crop script](data/crop_atms_for_classification.py) runs the trained detector on these photos and saves the resulting crops under the original labels and train, validation, and test splits.
 
-## Почему YOLO?
+The training scripts use a 640-pixel input size for detection and a 224-pixel input size for classification. Each subsequent fine-tuning stage starts from the previous stage's best checkpoint, and the scripts export the final models to ONNX. Retraining requires the corresponding Roboflow exports.
 
-- **End-to-end**: работает без дополнительной обработки
-- **Быстрая**: идеальна для реального времени
-- **Точная**: подходит для маленьких объектов
+## Validation results
 
----
+| Model | Validation metric recorded in the checkpoint | Checkpoint used by the API |
+| --- | --- | --- |
+| YOLO11n detector | **99.34%** mAP@0.50, **92.23%** mAP@0.50:0.95 | [`train13/weights/best.pt`](checkpoints/detection/yolo_detection_checkpoints/detect/train13/weights/best.pt) |
+| YOLOv8n classifier | **92.98%** top-1 accuracy on ATM crops | [`train_100/weights/best.pt`](checkpoints/classification/yolo_classification_checkpoints/train_100/weights/best.pt) |
 
-## Roboflow
+These figures describe validation of the two models on their respective tasks.
 
-Платформа **[Roboflow](https://roboflow.com)** использовалась для:
+## Repository guide
 
-- Разметки изображений банкоматов (bounding boxes).
-- Аугментаций: повороты, размытие, контраст, шум.
-- Экспорта в формат YOLO.
-- Автоматического формирования `data.yaml`.
+| Path | Contents |
+| --- | --- |
+| [`data/`](data/) | Roboflow import scripts and ATM crop generation |
+| [`detection/train.py`](detection/train.py) and [`classification/train.py`](classification/train.py) | Fine-tuning scripts |
+| [`models/`](models/) and [`checkpoints/`](checkpoints/) | Base weights, trained checkpoints, and [classifier training logs](checkpoints/classification/yolo_classification_checkpoints/) |
+| [`api/`](api/) and [`atm_machine__app/`](atm_machine__app/) | Inference API and Flutter client |
 
-Импорт размеченных данных осуществляется с помощью скриптов:
-- `data/import_dataset_detection.py`
-- `data/import_dataset_classification.py`
+## Run inference locally
 
----
-
-## Датасеты
-
-- `datasets/raw_classification_dataset/` — датасет для классификации (необрезанные фото) 
-- `datasets/processed_classification_dataset/` — датасет для классификации (обрезанные фото)
-- `datasets/raw_detection_dataset/` — размеченные изображения для детекции
-- `datasets/detection_test/` — тесты детекции
-- `datasets/classification_test/` — тесты классификации
-
----
-
-## Запуск
-
-### Установить зависимости
 ```bash
-pip install -r requirements.txt
+git clone --depth 1 https://github.com/aslelekova/coursework-sber.git
+cd coursework-sber
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install "torch==2.6.0" "torchvision==0.21.0" "ultralytics==8.3.76" \
+  fastapi uvicorn aiofiles loguru python-multipart
 ```
 
-### Обучение моделей
+In [`api/main.py`](api/main.py), replace the hard-coded paths in the `detector` and `classifier` initializers with the paths to their respective checkpoints in the table above. From the repository root, start the API.
+
 ```bash
-python detection/train.py
-python classification/train.py
+python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
 ```
 
-### Запуск API
+In another terminal, submit a photo using its local file path.
+
 ```bash
-cd api
-uvicorn main:app --reload --port 5500
+curl --fail-with-body -F 'upload_image=@/path/to/atm.jpg' http://127.0.0.1:8000/detect
 ```
-
----
-
-## Модели
-
-| Назначение     | Путь к модели |
-|----------------|---------------|
-| Детекция       | `models/yolo11n.pt` |
-| Классификация  | `models/yolov8n-cls.pt` |
-
----
-
-## Примеры изображений
-
-[Смотреть на Яндекс.Диске](https://disk.yandex.ru/d/pqK9be7LM9J4lg)
-
